@@ -10,9 +10,11 @@ SEEDS = [
     "https://en.wikipedia.org/wiki/Artificial_intelligence",
     "https://en.wikipedia.org/wiki/Information_retrieval",
     "https://en.wikipedia.org/wiki/Natural_language_processing"
+
 ]
 DOCS_FILE = "docs.jsonl"
 INDEX_FILE = "index.json"
+STATS_FILE = "doc_stats.json"
 
 def load_existing_docs():
     """Load existing documents from file and return a set of URLs and the documents list."""
@@ -54,27 +56,46 @@ def extract_content(html, url):
         "fetched_at": datetime.utcnow().isoformat()
     }
 
-def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE):
+def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE,stats_file=STATS_FILE):
     """Build complete inverted index from all documents."""
-    index = defaultdict(dict)
+    index = defaultdict(lambda:{"docs":{},"df":0})
     
+    doc_len = {}
+    total_docs = 0
+
     with open(docs_file, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 doc = json.loads(line.strip())
                 doc_id, text = str(doc["id"]), doc["text"].split()  # Ensure doc_id is string
+                
+                total_docs += 1
+                doc_len[doc_id] = len(text)
+
                 freqs = Counter(text)
+                
                 for word, count in freqs.items():
-                    index[word][doc_id] = count
-    
+                    index[word]["docs"][doc_id] = count
+                    index[word]["df"] +=1
+                
+    # Save index
     with open(index_file, "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False)
-    print(f"Inverted index built successfully with {len(index)} unique words")
+    
+    # Save doc stats
+    avg_len = sum(doc_len.values()) / total_docs if total_docs > 0 else 0
+    stats = {"doc_len": doc_len, "avg_len": avg_len, "N": total_docs}
+    
+    with open(stats_file, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False)
+    
+    print(f"Inverted index built with {len(index)} unique words across {total_docs} docs")
 
-def update_inverted_index(new_docs, index_file=INDEX_FILE):
+
+def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE):
     """Update existing index with new documents only."""
     # Load existing index
-    existing_index = defaultdict(dict)
+    existing_index = defaultdict(lambda: {"docs": {}, "df": 0})
     if os.path.exists(index_file):
         try:
             with open(index_file, "r", encoding="utf-8") as f:
@@ -84,18 +105,44 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE):
             print(f"Loaded existing index with {len(existing_index)} words")
         except Exception as e:
             print(f"Error loading existing index: {e}")
-    
-    # Add new documents to index
+
+    # Load stats
+    if os.path.exists(stats_file):
+        with open(stats_file, "r", encoding="utf-8") as f:
+            stats = json.load(f)
+        doc_len = stats.get("doc_len", {})
+        total_docs = stats.get("N", 0)
+    else:
+        doc_len = {}
+        total_docs = 0
+
+    # Add new documents
     for doc in new_docs:
-        doc_id, text = str(doc["id"]), doc["text"].split()  # Ensure doc_id is string
-        freqs = Counter(text)
+        doc_id, tokens = str(doc["id"]), doc["text"].split()
+
+        if doc_id in doc_len:  # skip if already indexed
+            continue
+
+        total_docs += 1
+        doc_len[doc_id] = len(tokens)
+
+        freqs = Counter(tokens)
         for word, count in freqs.items():
-            existing_index[word][doc_id] = count
-    
+            existing_index[word]["docs"][doc_id] = count
+            existing_index[word]["df"] += 1  # increase doc frequency by 1 for this doc
+
     # Save updated index
     with open(index_file, "w", encoding="utf-8") as f:
         json.dump(existing_index, f, ensure_ascii=False)
-    print(f"Updated index with {len(new_docs)} new documents. Total words: {len(existing_index)}")
+
+    # Save stats
+    avg_len = sum(doc_len.values()) / total_docs if total_docs > 0 else 0
+    stats = {"doc_len": doc_len, "avg_len": avg_len, "N": total_docs}
+
+    with open(stats_file, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False)
+
+    print(f"Updated index with {len(new_docs)} new documents. Total docs: {total_docs}, Total words: {len(existing_index)}")
 
 def save_to_file():
     # Load existing documents

@@ -54,7 +54,7 @@ def query_index(query, index_path=INDEX_PATH):
         #print(f"Looking for word: '{word}'")
         if word in index:
            #print(f"  Found '{word}' in index with {len(index[word])} documents")
-            for doc_id, count in index[word].items():
+            for doc_id, count in index[word]["docs"].items():
                 scores[doc_id] += count
                 #print(f"    Doc {doc_id}: +{count} (total: {scores[doc_id]})")
         #else:
