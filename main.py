@@ -4,8 +4,6 @@ def main():
     
     crawler.crawl()
 
-    docs = query.load_docs("docs.jsonl")
-
     query_input = input("query: ")
     
     query.response_query(query_input)

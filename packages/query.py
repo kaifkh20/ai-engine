@@ -1,13 +1,8 @@
 import math
-import nltk
 import json
 from collections import Counter
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-
-
-nltk.download('stopwords',quiet=True)
-nltk.download('punkt_tab',quiet=True)
+from . import text_preprocess as tp
+from thefuzz import process, fuzz
 
 DOCS_PATH = "docs.jsonl"
 INDEX_PATH = "index.json"
@@ -32,13 +27,6 @@ def load_stats(path=STATS_PATH):
     return stats
 #checking for overlapping tokens to rank the response
 
-def tokenize(s):
-    
-    stop_words = set(stopwords.words('english'))
-    # Tokenize and normalize to lowercase
-    tokens = word_tokenize(s.lower())
-    # Filter out stopwords
-    return [w for w in tokens if w not in stop_words and w.isalnum()]
 
 def query_score(q,d):
     qset = set(tokenize(q))
@@ -99,17 +87,41 @@ def bm25(query_tokens,index_path=INDEX_PATH,stats_path=STATS_PATH,k1=1.2,b=0.75)
 
     return scores
 
-def query_index(query, index_path=INDEX_PATH):
+def query_index(query_tokens, index_path=INDEX_PATH):
+    
     index = load_index(index_path)
     
-    query_tokens = tokenize(query)
     
     tf_idf_scores = tf_idf(query_tokens)
     bm25_scores = bm25(query_tokens)
 
     return ranking(bm25_scores)
 
-#sort the array in reverse according to the score and give us top-5 answer
+
+def fuzzy_fill(query_tokens,cutoff=80,index_path=INDEX_PATH):
+    
+    index = load_index(index_path)
+    
+    modified_tokens = []
+
+    for token in query_tokens:
+        if token not in index:
+            # find closest match in index keys using fuzzy matching
+            token_to_replace = process.extractOne(
+                token,
+                index.keys(),
+                score_cutoff=cutoff
+            )
+        
+            if token_to_replace:
+                matched_token = token_to_replace[0]
+                modified_tokens.append(matched_token)
+        else:
+            modified_tokens.append(token)
+
+    return modified_tokens
+            
+
 def response_query(query):
 
     """
@@ -122,8 +134,11 @@ def response_query(query):
     scored.sort(key=lambda x:x[0],reverse=True)
     return [d for score,d in scored[:5]]
     """
+    query_tokens = tp.text_preprocess(query)
+    
+    query_tokens = fuzzy_fill(query_tokens)
 
-    result_of_query = query_index(query,index_path=INDEX_PATH)
+    result_of_query = query_index(query_tokens,index_path=INDEX_PATH)
     
     print(f"Length of res_query : {len(result_of_query)}")
 

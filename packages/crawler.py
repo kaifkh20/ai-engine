@@ -5,6 +5,8 @@ import os
 from datetime import datetime
 from collections import defaultdict, Counter
 
+from . import text_preprocess as tp
+
 # List of seed URLs
 SEEDS = [
     "https://en.wikipedia.org/wiki/Artificial_intelligence",
@@ -49,10 +51,12 @@ def extract_content(html, url):
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.string if soup.title else "Untitled"
     text = soup.get_text(separator=" ", strip=True)
+    text_tokens = tp.text_preprocess(text)
+    
     return {
         "url": url,
         "title": title,
-        "text": text.lower(),
+        "text": ' '.join(text_tokens),
         "fetched_at": datetime.utcnow().isoformat()
     }
 
