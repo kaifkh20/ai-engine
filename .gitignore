@@ -13,3 +13,10 @@ __pycache__/
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+#Ignore files like index and all
+doc_stats.json
+index.faiss
+docs.jsonl
+index.json
+vector.json

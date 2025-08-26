@@ -23,6 +23,7 @@ INDEX_FILE = "index.json"
 STATS_FILE = "doc_stats.json"
 
 FAISS_FILE = "index.faiss"
+VECTOR_FILE = "vector.json"
 
 def load_existing_docs():
     """Load existing documents from file and return a set of URLs and the documents list."""
@@ -66,7 +67,7 @@ def extract_content(html, url):
         "fetched_at": datetime.utcnow().isoformat()
     }
 
-def add_to_fssai(doc_id, doc_text, update=False, faiss_file=FAISS_FILE):
+def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_file=VECTOR_FILE):
     """
     Add document to FAISS index.
     
@@ -84,7 +85,7 @@ def add_to_fssai(doc_id, doc_text, update=False, faiss_file=FAISS_FILE):
     embeddings = np.array(embeddings).astype('float32')
     dimension = embeddings.shape[1]  # Usually 384 for all-MiniLM-L6-v2
     
-    if update and os.path.exists(faiss_file):
+    if os.path.exists(faiss_file):
         # UPDATE MODE: Load existing index
         try:
             index = faiss.read_index(faiss_file)
@@ -92,7 +93,7 @@ def add_to_fssai(doc_id, doc_text, update=False, faiss_file=FAISS_FILE):
             
             # Load existing mapping
             try:
-                with open(fass_file, "r") as f:
+                with open(vector_file, "r") as f:
                     existing_mapping = json.load(f)
             except FileNotFoundError:
                 existing_mapping = {}
@@ -130,14 +131,13 @@ def add_to_fssai(doc_id, doc_text, update=False, faiss_file=FAISS_FILE):
     # Save updated mapping
     try:
         
-        with open(fass_file, "w") as f:
-            json.dump(existing_mapping, f, indent=2)
-        print(f"Vector mapping saved successfully to {fass_file}")
+        with open(vector_file, "w") as f:
+            json.dump(existing_mapping, f)
+        print(f"Vector mapping saved successfully to {faiss_file}")
     except Exception as e:
         raise RuntimeError(f"Failed to save vector mapping: {e}")
     
     print(f"Document '{doc_id}' added successfully at index position {vector_index_id}")
-    return vector_index_id
 
 
 
@@ -171,7 +171,7 @@ def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE, stats_file=
                         "pos": positions
                     }
                     index[word]["df"] += 1
-                add_to_fssai(doc_id=doc_id,doc_text=doc["text"],update=False)
+                add_to_faiss(doc_id=doc_id,doc_text=doc["text"])
                 
     # Save index
     with open(index_file, "w", encoding="utf-8") as f:
@@ -235,7 +235,7 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
             }
             existing_index[word]["df"] += 1  # increase doc frequency by 1 for this doc
         
-        add_to_fssai(doc_id=doc_id,doc_text=doc["text"],update=True)
+        add_to_faiss(doc_id=doc_id,doc_text=doc["text"])
     
     # Save updated index
     with open(index_file, "w", encoding="utf-8") as f:
@@ -292,7 +292,6 @@ def save_to_file():
             # If index doesn't exist, build it from scratch
             print("Index file doesn't exist. Building complete index...")
             build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE)
-            add_to_fssai(docs_file=DOCS_FILE)
     else:
         print("No new documents to add - index remains unchanged")
     
