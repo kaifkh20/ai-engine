@@ -34,7 +34,7 @@ def query_score(q,d):
 
     return len(qset.intersection(dset))
 
-def ranking(scores,top_k=5):
+def ranking(scores,top_k=10):
     docs = load_docs(DOCS_PATH)
     doc_map = {str(doc["id"]) : doc["url"] for doc in docs}
     
@@ -118,29 +118,90 @@ def fuzzy_fill(query_tokens,cutoff=80,index_path=INDEX_PATH):
 
     return modified_tokens
             
+def check_phrase_in_doc(positions_list):
+    """
+    positions_list: [[pos1, pos2...], [pos1, pos2...], ...]
+    Returns count of phrase occurrences in doc
+    """
+    count = 0
+    # For each position of the first term
+    for pos in positions_list[0]:
+        match = True
+        # Check if following terms appear in sequence
+        for i in range(1, len(positions_list)):
+            if (pos + i) not in positions_list[i]:
+                match = False
+                break
+        if match:
+            count += 1
+    return count
+
+def phrase_search(phrase_terms, index_file=INDEX_PATH):
+    index = load_index()
+    docs = load_docs()
+    doc_map = {str(doc["id"]) : doc["url"] for doc in docs}
+
+    postings = []
+    for term in phrase_terms:
+        if term not in index:
+            return []
+        postings.append(index[term]["docs"])
+
+    common_docs = set(postings[0].keys())
+    for p in postings[1:]:
+        common_docs &= set(p.keys())
+    
+    scores = Counter()
+    for doc_id in common_docs:
+        positions_list = [postings[i][doc_id]["pos"] for i in range(len(phrase_terms))]
+        phrase_count = check_phrase_in_doc(positions_list)
+        if phrase_count > 0:
+            scores[doc_id] = phrase_count  # simple scoring
+    
+    return ranking(scores)
+
+def normal_search(tokens, index_path):
+    return query_index(tokens, index_path=index_path)  
+
+def preprocess_query(query):
+    tokens = tp.text_preprocess(query)
+    tokens = fuzzy_fill(tokens)
+    return tokens
+
+def merge_results(normal_results, phrase_results, phrase_boost=2.0):
+    combined_scores = {}
+    
+    # Add normal results
+    for doc_id,doc_url, score in normal_results:
+        combined_scores[doc_id] = {"url":doc_url, "score": score}
+
+    # Add phrase results with boost
+    for doc_id,doc_url,phrase_score in phrase_results:
+        if doc_id in combined_scores:
+            combined_scores[doc_id]["score"] += phrase_score * phrase_boost
+        else:
+            combined_scores[doc_id] = {"url":doc_url, "score": phrase_score * phrase_boost}
+
+    # Sort
+
+    return sorted(
+        [(doc_id, vals["url"], vals["score"]) for doc_id, vals in combined_scores.items()],
+        key=lambda x: x[2],
+        reverse=True
+    )
+    
 
 def response_query(query):
-
-    """
-    scored = []
-    for d in docs:
-        score = query_score(query,d["text"])
-        scored.append((score,d))
-
-
-    scored.sort(key=lambda x:x[0],reverse=True)
-    return [d for score,d in scored[:5]]
-    """
-    query_tokens = tp.text_preprocess(query)
     
-    query_tokens = fuzzy_fill(query_tokens)
+    tokens = preprocess_query(query)
 
-    result_of_query = query_index(query_tokens,index_path=INDEX_PATH)
-    
-    print(f"Length of res_query : {len(result_of_query)}")
+    normal_results = normal_search(tokens, INDEX_PATH)
+    phrase_results = phrase_search(tokens, INDEX_PATH)
 
-    for s_no,(doc_id,doc_url,score) in enumerate(result_of_query,1):
-        print(f"{s_no} : Documnet Id :{doc_id} : {doc_url} with a score of {score}\n")
+    final_results = merge_results(normal_results, phrase_results)
 
-    print(f"Query Succesfull")
+    print(f"Length of res_query : {len(final_results)}")
+    for s_no, (doc_id, doc_url, score) in enumerate(final_results, 1):
+        print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")
+    print("Query Successful")
 
