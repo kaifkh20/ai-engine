@@ -60,13 +60,12 @@ def extract_content(html, url):
         "fetched_at": datetime.utcnow().isoformat()
     }
 
-def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE,stats_file=STATS_FILE):
-    """Build complete inverted index from all documents."""
-    index = defaultdict(lambda:{"docs":{},"df":0})
+def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE, stats_file=STATS_FILE):
+    """Build complete inverted index from all documents with positional information."""
+    index = defaultdict(lambda: {"docs": {}, "df": 0})
     
     doc_len = {}
     total_docs = 0
-
     with open(docs_file, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
@@ -75,12 +74,19 @@ def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE,stats_file=S
                 
                 total_docs += 1
                 doc_len[doc_id] = len(text)
-
-                freqs = Counter(text)
                 
-                for word, count in freqs.items():
-                    index[word]["docs"][doc_id] = count
-                    index[word]["df"] +=1
+                # Track word positions
+                word_positions = defaultdict(list)
+                for pos, word in enumerate(text):
+                    word_positions[word].append(pos)
+                
+                # Build index with tf and positions
+                for word, positions in word_positions.items():
+                    index[word]["docs"][doc_id] = {
+                        "tf": len(positions),
+                        "pos": positions
+                    }
+                    index[word]["df"] += 1
                 
     # Save index
     with open(index_file, "w", encoding="utf-8") as f:
@@ -109,7 +115,7 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
             print(f"Loaded existing index with {len(existing_index)} words")
         except Exception as e:
             print(f"Error loading existing index: {e}")
-
+    
     # Load stats
     if os.path.exists(stats_file):
         with open(stats_file, "r", encoding="utf-8") as f:
@@ -119,33 +125,40 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
     else:
         doc_len = {}
         total_docs = 0
-
+    
     # Add new documents
     for doc in new_docs:
         doc_id, tokens = str(doc["id"]), doc["text"].split()
-
         if doc_id in doc_len:  # skip if already indexed
             continue
-
+        
         total_docs += 1
         doc_len[doc_id] = len(tokens)
-
-        freqs = Counter(tokens)
-        for word, count in freqs.items():
-            existing_index[word]["docs"][doc_id] = count
+        
+        # Track word positions
+        word_positions = defaultdict(list)
+        for pos, word in enumerate(tokens):
+            word_positions[word].append(pos)
+        
+        # Update index with tf and positions
+        for word, positions in word_positions.items():
+            existing_index[word]["docs"][doc_id] = {
+                "tf": len(positions),
+                "pos": positions
+            }
             existing_index[word]["df"] += 1  # increase doc frequency by 1 for this doc
-
+    
     # Save updated index
     with open(index_file, "w", encoding="utf-8") as f:
         json.dump(existing_index, f, ensure_ascii=False)
-
+    
     # Save stats
     avg_len = sum(doc_len.values()) / total_docs if total_docs > 0 else 0
     stats = {"doc_len": doc_len, "avg_len": avg_len, "N": total_docs}
-
+    
     with open(stats_file, "w", encoding="utf-8") as f:
         json.dump(stats, f, ensure_ascii=False)
-
+    
     print(f"Updated index with {len(new_docs)} new documents. Total docs: {total_docs}, Total words: {len(existing_index)}")
 
 def save_to_file():

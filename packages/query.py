@@ -41,50 +41,47 @@ def ranking(scores,top_k=5):
     return [(doc_id,doc_map.get(doc_id,""),score) for doc_id,score in scores.most_common(top_k)]
 
 
-def tf_idf(query_tokens,index_path=INDEX_PATH,stats_path=STATS_PATH):
+def tf_idf(query_tokens, index_path=INDEX_PATH, stats_path=STATS_PATH):
     index = load_index(index_path)
     stats = load_stats(stats_path)
-
     N = stats["N"]
     doc_len = stats["doc_len"]
-
     scores = Counter()
-
+    
     for word in query_tokens:
         if word not in index:
             continue
         df = index[word]["df"] 
-        idf = math.log((N+1)/(df+1))+1  #smoothed idf or also laplace smoothing
-
-        for doc_id,count in index[word]["docs"].items():
-            tf = count/doc_len[doc_id]
-            scores[doc_id] = tf*idf
+        idf = math.log((N+1)/(df+1))+1  # smoothed idf or also laplace smoothing
+        
+        for doc_id, doc_info in index[word]["docs"].items():
+            tf_raw = doc_info["tf"]  # Get tf from the nested dictionary
+            tf = tf_raw / doc_len[doc_id]  # Normalize by document length
+            scores[doc_id] += tf * idf  # Use += to accumulate scores for multiple query terms
     
     return scores
 
-def bm25(query_tokens,index_path=INDEX_PATH,stats_path=STATS_PATH,k1=1.2,b=0.75):
-    
+
+def bm25(query_tokens, index_path=INDEX_PATH, stats_path=STATS_PATH, k1=1.2, b=0.75):
     index = load_index(index_path)
     stats = load_stats(stats_path)
-
     N = stats["N"]
     doc_len = stats["doc_len"]
     avg_len = stats["avg_len"]
-
     scores = Counter()
-
+    
     for word in query_tokens:
         if word not in index:
             continue
         df = index[word]["df"] 
-        idf = math.log((N+1)/(df+1))+1  #smoothed idf or also laplace smoothing
+        idf = math.log((N+1)/(df+1))+1  # smoothed idf or also laplace smoothing
         
-        for doc_id,count in index[word]["docs"].items():
-            
-            ft_d = index[word]["docs"][doc_id]
+        for doc_id, doc_info in index[word]["docs"].items():
+            ft_d = doc_info["tf"]  # Get tf from the nested dictionary
             l_doc = doc_len[doc_id] 
-            scores[doc_id] = idf*((ft_d*(k1+1))/(ft_d+(k1*((1-b)+b*(l_doc/avg_len)))))
-
+            bm25_score = idf * ((ft_d * (k1 + 1)) / (ft_d + (k1 * ((1 - b) + b * (l_doc / avg_len)))))
+            scores[doc_id] += bm25_score  # Use += to accumulate scores for multiple query terms
+    
     return scores
 
 def query_index(query_tokens, index_path=INDEX_PATH):
