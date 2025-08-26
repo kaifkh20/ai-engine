@@ -8,12 +8,7 @@ def main():
 
     query_input = input("query: ")
     
-    results = query.response_query(query_input,docs)
-    
-
-    for i, d in enumerate(results, 1):
-        print(f"{i}. {d['title']} ({d['url']})")
-        print("   ", d["text"][:200], "...\n")  # snippet
+    query.response_query(query_input)
 
 if __name__=="__main__":
     main()

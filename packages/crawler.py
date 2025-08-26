@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json 
 import os
 from datetime import datetime
+from collections import defaultdict, Counter
 
 # List of seed URLs
 SEEDS = [
@@ -10,8 +11,8 @@ SEEDS = [
     "https://en.wikipedia.org/wiki/Information_retrieval",
     "https://en.wikipedia.org/wiki/Natural_language_processing"
 ]
-
 DOCS_FILE = "docs.jsonl"
+INDEX_FILE = "index.json"
 
 def load_existing_docs():
     """Load existing documents from file and return a set of URLs and the documents list."""
@@ -49,9 +50,52 @@ def extract_content(html, url):
     return {
         "url": url,
         "title": title,
-        "text": text,
+        "text": text.lower(),
         "fetched_at": datetime.utcnow().isoformat()
     }
+
+def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE):
+    """Build complete inverted index from all documents."""
+    index = defaultdict(dict)
+    
+    with open(docs_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                doc = json.loads(line.strip())
+                doc_id, text = str(doc["id"]), doc["text"].split()  # Ensure doc_id is string
+                freqs = Counter(text)
+                for word, count in freqs.items():
+                    index[word][doc_id] = count
+    
+    with open(index_file, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False)
+    print(f"Inverted index built successfully with {len(index)} unique words")
+
+def update_inverted_index(new_docs, index_file=INDEX_FILE):
+    """Update existing index with new documents only."""
+    # Load existing index
+    existing_index = defaultdict(dict)
+    if os.path.exists(index_file):
+        try:
+            with open(index_file, "r", encoding="utf-8") as f:
+                loaded_index = json.load(f)
+                for word, doc_dict in loaded_index.items():
+                    existing_index[word] = doc_dict
+            print(f"Loaded existing index with {len(existing_index)} words")
+        except Exception as e:
+            print(f"Error loading existing index: {e}")
+    
+    # Add new documents to index
+    for doc in new_docs:
+        doc_id, text = str(doc["id"]), doc["text"].split()  # Ensure doc_id is string
+        freqs = Counter(text)
+        for word, count in freqs.items():
+            existing_index[word][doc_id] = count
+    
+    # Save updated index
+    with open(index_file, "w", encoding="utf-8") as f:
+        json.dump(existing_index, f, ensure_ascii=False)
+    print(f"Updated index with {len(new_docs)} new documents. Total words: {len(existing_index)}")
 
 def save_to_file():
     # Load existing documents
@@ -82,8 +126,16 @@ def save_to_file():
             for doc in new_docs:
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
         print(f"Added {len(new_docs)} new documents to {DOCS_FILE}")
+        
+        # Only update index if we have new documents
+        if os.path.exists(INDEX_FILE):
+            update_inverted_index(new_docs, index_file=INDEX_FILE)
+        else:
+            # If index doesn't exist, build it from scratch
+            print("Index file doesn't exist. Building complete index...")
+            build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE)
     else:
-        print("No new documents to add")
+        print("No new documents to add - index remains unchanged")
     
     if skipped_count > 0:
         print(f"Skipped {skipped_count} already existing documents")
@@ -93,4 +145,3 @@ def save_to_file():
 
 def crawl():
     save_to_file()
-
