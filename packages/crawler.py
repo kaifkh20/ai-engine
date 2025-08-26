@@ -5,6 +5,10 @@ import os
 from datetime import datetime
 from collections import defaultdict, Counter
 
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+
 from . import text_preprocess as tp
 
 # List of seed URLs
@@ -17,6 +21,8 @@ SEEDS = [
 DOCS_FILE = "docs.jsonl"
 INDEX_FILE = "index.json"
 STATS_FILE = "doc_stats.json"
+
+FAISS_FILE = "index.faiss"
 
 def load_existing_docs():
     """Load existing documents from file and return a set of URLs and the documents list."""
@@ -60,6 +66,84 @@ def extract_content(html, url):
         "fetched_at": datetime.utcnow().isoformat()
     }
 
+def add_to_fssai(doc_id, doc_text, update=False, faiss_file=FAISS_FILE):
+    """
+    Add document to FAISS index.
+    
+    """
+    
+    # Input validation
+    if not doc_id or not doc_text:
+        raise ValueError("doc_id and doc_text cannot be empty")
+    
+    # Initialize model
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    
+    # Generate embeddings
+    embeddings = model.encode([doc_text])
+    embeddings = np.array(embeddings).astype('float32')
+    dimension = embeddings.shape[1]  # Usually 384 for all-MiniLM-L6-v2
+    
+    if update and os.path.exists(faiss_file):
+        # UPDATE MODE: Load existing index
+        try:
+            index = faiss.read_index(faiss_file)
+            print(f"Existing index loaded successfully with {index.ntotal} vectors")
+            
+            # Load existing mapping
+            try:
+                with open(fass_file, "r") as f:
+                    existing_mapping = json.load(f)
+            except FileNotFoundError:
+                existing_mapping = {}
+                print("Warning: Vector mapping file not found, creating new mapping")
+                
+        except Exception as e:
+            print(f"Error loading existing index: {e}")
+            print("Creating new index instead")
+            index = faiss.IndexFlatL2(dimension)
+            existing_mapping = {}
+    else:
+        # BUILD FROM SCRATCH MODE: Create new index
+        print("Building new index from scratch")
+        index = faiss.IndexFlatL2(dimension)
+        existing_mapping = {}
+    
+    # Check if doc_id already exists
+    if doc_id in existing_mapping:
+        print(f"Warning: doc_id '{doc_id}' already exists. It will be overwritten.")
+    
+    # Add new embedding to index
+    index.add(embeddings)
+    vector_index_id = index.ntotal - 1
+    
+    # Update mapping
+    existing_mapping[doc_id] = vector_index_id
+    
+    # Save updated index
+    try:
+        faiss.write_index(index, faiss_file)
+        print(f"Index saved successfully to {faiss_file}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to save FAISS index: {e}")
+    
+    # Save updated mapping
+    try:
+        
+        with open(fass_file, "w") as f:
+            json.dump(existing_mapping, f, indent=2)
+        print(f"Vector mapping saved successfully to {fass_file}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to save vector mapping: {e}")
+    
+    print(f"Document '{doc_id}' added successfully at index position {vector_index_id}")
+    return vector_index_id
+
+
+
+
+
+
 def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE, stats_file=STATS_FILE):
     """Build complete inverted index from all documents with positional information."""
     index = defaultdict(lambda: {"docs": {}, "df": 0})
@@ -87,6 +171,7 @@ def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE, stats_file=
                         "pos": positions
                     }
                     index[word]["df"] += 1
+                add_to_fssai(doc_id=doc_id,doc_text=doc["text"],update=False)
                 
     # Save index
     with open(index_file, "w", encoding="utf-8") as f:
@@ -129,6 +214,8 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
     # Add new documents
     for doc in new_docs:
         doc_id, tokens = str(doc["id"]), doc["text"].split()
+
+        
         if doc_id in doc_len:  # skip if already indexed
             continue
         
@@ -147,6 +234,8 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
                 "pos": positions
             }
             existing_index[word]["df"] += 1  # increase doc frequency by 1 for this doc
+        
+        add_to_fssai(doc_id=doc_id,doc_text=doc["text"],update=True)
     
     # Save updated index
     with open(index_file, "w", encoding="utf-8") as f:
@@ -160,6 +249,7 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
         json.dump(stats, f, ensure_ascii=False)
     
     print(f"Updated index with {len(new_docs)} new documents. Total docs: {total_docs}, Total words: {len(existing_index)}")
+
 
 def save_to_file():
     # Load existing documents
@@ -189,15 +279,20 @@ def save_to_file():
         with open(DOCS_FILE, "a", encoding="utf-8") as f:
             for doc in new_docs:
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+        
         print(f"Added {len(new_docs)} new documents to {DOCS_FILE}")
         
         # Only update index if we have new documents
         if os.path.exists(INDEX_FILE):
             update_inverted_index(new_docs, index_file=INDEX_FILE)
+        
+        #only update fssai when we have new docs
+        
         else:
             # If index doesn't exist, build it from scratch
             print("Index file doesn't exist. Building complete index...")
             build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE)
+            add_to_fssai(docs_file=DOCS_FILE)
     else:
         print("No new documents to add - index remains unchanged")
     

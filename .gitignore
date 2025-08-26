@@ -1,0 +1,15 @@
+# Ignore the virtual environment directory
+venv/
+env/
+.venv/
+
+# Ignore Python-specific files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore common editor/IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
