@@ -4,7 +4,7 @@ from collections import Counter
 from . import text_preprocess as tp
 from thefuzz import process, fuzz
 
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer,CrossEncoder
 import faiss
 import numpy as np
 
@@ -182,9 +182,11 @@ def merge_results(normal_results, phrase_results, phrase_boost=2.0):
     # Add normal results
     for doc_id,doc_url, score in normal_results:
         combined_scores[doc_id] = {"url":doc_url, "score": score}
-
+        
     # Add phrase results with boost
     for doc_id,doc_url,phrase_score in phrase_results:
+        if not doc_url:
+            continue
         if doc_id in combined_scores:
             combined_scores[doc_id]["score"] += phrase_score * phrase_boost
         else:
@@ -216,6 +218,8 @@ def embed_query(query, faiss_path=FAISS_PATH, vector_path=VECTOR_PATH, k=1):
             
             for i, vector_idx in enumerate(indices[0]):
                 doc_id = vector_map[str(vector_idx)]  # Convert to string key
+                if doc_id is None:
+                    continue
                 distance = distances[0][i]  # Get corresponding distance
                 result.append((doc_id, distance))
                 
@@ -239,6 +243,36 @@ def union_weightage(lexical_results,embed_result,alpha=0.5,beta=0.8):
     
     return ranking(scores)    
 
+def cross_encoder(query_raw, union_score_results):
+    print(f"Running cross encoding")
+    
+    docs = load_docs()
+    
+    doc_lookup = {doc["id"]: doc["raw_text"] for doc in docs}
+    
+    
+    scores_to_predict = []
+    enhanced_results = []
+    
+    for (doc_id, score1, score2) in union_score_results:
+        if doc_id in doc_lookup:
+            raw_text = doc_lookup[doc_id]
+            scores_to_predict.append((query_raw, raw_text))
+            enhanced_results.append((doc_id, score1, score2, raw_text))
+    
+    
+    scores = Counter()
+    
+    
+    model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L6-v2')
+    model_scores = model.predict(scores_to_predict)
+    
+    
+    for idx, (doc_id, _, _, _) in enumerate(enhanced_results):
+        scores[doc_id] = model_scores[idx]
+    
+    return ranking(scores)
+
 def response_query(query):
     
 
@@ -246,17 +280,21 @@ def response_query(query):
     
     embed_result = embed_query(' '.join(query))
     
-
-
     normal_results = normal_search(tokens, INDEX_PATH)
     phrase_results = phrase_search(tokens, INDEX_PATH)
+    
+    print(f"LEN:{len(phrase_results)}")
 
     final_results_lexical = merge_results(normal_results, phrase_results)
     
+    print(f"LEN:{len(final_results_lexical)}")
+    
     union_score_result = union_weightage(final_results_lexical,embed_result)
-
-    print(f"Length of res_query : {len(union_score_result)}")
-    for s_no, (doc_id, doc_url, score) in enumerate(union_score_result, 1):
+    
+    cross_encoder_result = cross_encoder(query,union_score_result)
+    
+    print(f"Length of res_query : {len(cross_encoder_result)}")
+    for s_no, (doc_id, doc_url, score) in enumerate(cross_encoder_result, 1):
         print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")
     print("Query Successful")
 

@@ -4,6 +4,10 @@ import json
 import os
 from datetime import datetime
 from collections import defaultdict, Counter
+from urllib.parse import urljoin, urlparse
+import time
+import random
+from typing import Set, List, Dict, Optional
 
 from sentence_transformers import SentenceTransformer
 import faiss
@@ -11,19 +15,164 @@ import numpy as np
 
 from . import text_preprocess as tp
 
-# List of seed URLs
-SEEDS = [
-    "https://en.wikipedia.org/wiki/Artificial_intelligence",
-    "https://en.wikipedia.org/wiki/Information_retrieval",
-    "https://en.wikipedia.org/wiki/Natural_language_processing"
-
-]
+# Your original constants
 DOCS_FILE = "docs.jsonl"
 INDEX_FILE = "index.json"
 STATS_FILE = "doc_stats.json"
-
 FAISS_FILE = "index.faiss"
 VECTOR_FILE = "vector.json"
+
+class URLDiscoverer:
+    """Handles URL discovery from various sources"""
+    
+    def __init__(self, config_file="crawler_config.json"):
+        self.load_config(config_file)
+        self.discovered_urls: Set[str] = set()
+        
+    def load_config(self, config_file):
+        """Load URL discovery configuration"""
+        
+        default_config = {}
+
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                user_config = json.load(f)
+                default_config.update(user_config)
+        else:
+            # Save default config
+            with open(config_file, 'w') as f:
+                json.dump(default_config, f, indent=2)
+        
+        self.config = default_config
+    
+    def is_valid_url(self, url: str) -> bool:
+        """Check if URL should be included"""
+        parsed = urlparse(url)
+        
+        # Check allowed domains
+        if self.config["allowed_domains"]:
+            if parsed.netloc not in self.config["allowed_domains"]:
+                return False
+        
+        # Basic URL validation
+        if not url.startswith(('http://', 'https://')):
+            return False
+            
+        return True
+   
+    def discover_from_manual_seeds(self):
+        """Discover URLs from manually specified seeds in the config"""
+        urls = []
+        seeds = self.config.get("manual_seeds", [])
+        max_urls = self.config.get("max_urls_per_source", 50)
+
+        for url in seeds[:max_urls]:
+            if self.is_valid_url(url):
+                urls.append(url)
+            else:
+                print(f"Invalid manual seed URL skipped: {url}")
+
+        print(f"Discovered {len(urls)} URLs from manual seeds")
+        return urls 
+
+    def discover_from_sitemaps(self) -> List[str]:
+        """Discover URLs from XML sitemaps"""
+        urls = []
+        max_urls = self.config["max_urls_per_source"]
+        HEADERS = {"User-Agent": "AI/SearchBot/0.1 (kaifkhan.saif@gmail.com)"}
+        
+        for sitemap_url in self.config["sitemap_urls"]:
+            print(f"Processing sitemap: {sitemap_url}")
+            
+            try:
+                response = requests.get(sitemap_url, headers=HEADERS, timeout=10)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.content, 'xml')
+                
+                # Extract URLs from sitemap
+                url_elements = soup.find_all('url')
+                for url_elem in url_elements[:max_urls]:
+                    loc = url_elem.find('loc')
+                    if loc and self.is_valid_url(loc.text):
+                        urls.append(loc.text)
+                        
+                time.sleep(self.config["delay_between_requests"])
+                        
+            except Exception as e:
+                print(f"Error processing sitemap {sitemap_url}: {e}")
+        
+        print(f"Discovered {len(urls)} URLs from sitemaps")
+        return urls
+    
+    def discover_from_wikipedia_api(self) -> List[str]:
+        """Discover URLs using Wikipedia search API"""
+        urls = []
+        wiki_config = self.config["search_apis"]["wikipedia"]
+
+        
+        if not wiki_config.get("enabled"):
+            return urls
+        
+        base_url = wiki_config["base_url"]
+        topics = wiki_config["topics"]
+        max_per_topic = self.config["max_urls_per_source"] // len(topics) if topics else 10
+        
+        for topic in topics:
+            print(f"Searching Wikipedia for: {topic}")
+            
+            params = {
+                'action': 'query',
+                'format': 'json',
+                'list': 'search',
+                'srsearch': topic,
+                'srlimit': max_per_topic
+            }
+            
+            try:
+                response = requests.get(base_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'query' in data and 'search' in data['query']:
+                    for result in data['query']['search']:
+                        page_title = result['title']
+                        url = f"https://en.wikipedia.org/wiki/{page_title.replace(' ', '_')}"
+                        
+                        if self.is_valid_url(url):
+                            urls.append(url)
+                
+                time.sleep(self.config["delay_between_requests"])
+                            
+            except Exception as e:
+                print(f"Error searching Wikipedia for '{topic}': {e}")
+        
+        print(f"Discovered {len(urls)} URLs from Wikipedia API")
+        return urls
+    
+    def discover_all_urls(self):
+        """Main method to discover URLs from all sources"""
+        all_urls = []
+        print("=== Starting URL Discovery ===")
+
+        # Method 1: Sitemaps
+        sitemap_urls = self.discover_from_sitemaps()
+        all_urls.extend(sitemap_urls)
+
+        # Method 2: Wikipedia API
+        wiki_urls = self.discover_from_wikipedia_api()
+        all_urls.extend(wiki_urls)
+
+        # Method 3: Manual seeds
+        manual_urls = self.discover_from_manual_seeds()
+        all_urls.extend(manual_urls)
+
+        # Remove duplicates while preserving order
+        unique_urls = list(dict.fromkeys(all_urls))
+
+        print(f"Total unique URLs discovered: {len(unique_urls)}")
+        return unique_urls
+
 
 def load_existing_docs():
     """Load existing documents from file and return a set of URLs and the documents list."""
@@ -60,11 +209,13 @@ def extract_content(html, url):
     text = soup.get_text(separator=" ", strip=True)
     text_tokens = tp.text_preprocess(text)
     
+
     return {
         "url": url,
         "title": title,
         "text": ' '.join(text_tokens),
-        "fetched_at": datetime.utcnow().isoformat()
+        "fetched_at": datetime.utcnow().isoformat(),
+        "raw_text" : text
     }
 
 def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_file=VECTOR_FILE):
@@ -118,7 +269,7 @@ def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_fi
     vector_index_id = index.ntotal - 1
     
     # Update mapping
-    existing_mapping[vector_index_id] = doc_id
+    existing_mapping[doc_id] = vector_index_id
     
     # Save updated index
     try:
@@ -249,15 +400,18 @@ def update_inverted_index(new_docs, index_file=INDEX_FILE, stats_file=STATS_FILE
     
     print(f"Updated index with {len(new_docs)} new documents. Total docs: {total_docs}, Total words: {len(existing_index)}")
 
-
 def save_to_file():
     # Load existing documents
     existing_urls, existing_docs = load_existing_docs()
     
+    discoverer = URLDiscoverer()
+    seeds = discoverer.discover_all_urls()
+    print(f"Found {len(seeds)} URLs to crawl") 
+
     new_docs = []
     skipped_count = 0
     
-    for url in SEEDS:
+    for url in seeds:
         if url in existing_urls:
             print(f"Skipping already fetched URL: {url}")
             skipped_count += 1
@@ -265,12 +419,12 @@ def save_to_file():
             
         print(f"Fetching new URL: {url}")
         html = fetch_page(url)
-        if not html:
+        if not html or not url:
             continue
             
         doc = extract_content(html, url)
         # Assign ID based on total number of docs (existing + new)
-        doc["id"] = len(existing_docs) + len(new_docs) + 1
+        doc["id"] = str(len(existing_docs) + len(new_docs) + 1)
         new_docs.append(doc)
     
     if new_docs:
@@ -299,6 +453,7 @@ def save_to_file():
     
     total_docs = len(existing_docs) + len(new_docs)
     print(f"Total documents in collection: {total_docs}")
+
 
 def crawl():
     save_to_file()

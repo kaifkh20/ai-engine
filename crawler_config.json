@@ -1,0 +1,32 @@
+{
+  "sitemap_urls": [],
+  "rss_feeds": [
+    "https://arxiv.org/rss/cs.AI",
+    "https://feeds.feedburner.com/oreilly/radar"
+  ],
+  "search_apis": {
+    "wikipedia": {
+      "enabled": true,
+      "base_url": "https://en.wikipedia.org/w/api.php",
+      "topics": [
+        "machine learning",
+        "neural networks",
+        "computer vision",
+        "natural language processing"
+      ]
+    }
+  },
+  "manual_seeds": [
+    "https://en.wikipedia.org/wiki/Artificial_intelligence",
+    "https://en.wikipedia.org/wiki/Machine_learning",
+    "https://arxiv.org/abs/1706.03762",
+   "https://en.wikipedia.org/wiki/Natural_language_processing" 
+  ],
+  "allowed_domains": [
+    "en.wikipedia.org",
+    "arxiv.org",
+    "feeds.feedburner.com"
+  ],
+  "max_urls_per_source": 10,
+  "delay_between_requests": 1
+}
