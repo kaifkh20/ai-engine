@@ -4,9 +4,17 @@ from collections import Counter
 from . import text_preprocess as tp
 from thefuzz import process, fuzz
 
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+
+
 DOCS_PATH = "docs.jsonl"
 INDEX_PATH = "index.json"
 STATS_PATH = "doc_stats.json"
+
+VECTOR_PATH = "vector.json"
+FAISS_PATH = "index.faiss"
 
 def load_docs(path=DOCS_PATH):
     docs = []
@@ -183,25 +191,72 @@ def merge_results(normal_results, phrase_results, phrase_boost=2.0):
             combined_scores[doc_id] = {"url":doc_url, "score": phrase_score * phrase_boost}
 
     # Sort
+    
 
     return sorted(
         [(doc_id, vals["url"], vals["score"]) for doc_id, vals in combined_scores.items()],
         key=lambda x: x[2],
         reverse=True
     )
+
+
+def embed_query(query, faiss_path=FAISS_PATH, vector_path=VECTOR_PATH, k=1):
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    result = []
     
+    try:    
+        faiss_index = faiss.read_index(faiss_path)
+        query_embeddings = model.encode([query])
+        query_embeddings = np.array(query_embeddings).astype('float32')
+        
+        distances, indices = faiss_index.search(query_embeddings, k)
+               
+        with open(vector_path, 'r') as f:
+            vector_map = json.load(f)  
+            
+            for i, vector_idx in enumerate(indices[0]):
+                doc_id = vector_map[str(vector_idx)]  # Convert to string key
+                distance = distances[0][i]  # Get corresponding distance
+                result.append((doc_id, distance))
+                
+    except Exception as e:
+        print(f"Error occurred while embedding query: {e}")
+        return []
+    
+    result.sort(key=lambda x: x[1])  # Sort by distance (ascending)
+    print(f"Result of embed query: {result}")
+    return result
+
+def union_weightage(lexical_results,embed_result,alpha=0.5,beta=0.8):
+    
+    scores = Counter()
+    
+    for (doc_id,_,score) in lexical_results:
+        scores[doc_id] = score*alpha 
+
+    for (doc_id,distance) in embed_result:
+        scores[doc_id] += beta*distance  
+    
+    return ranking(scores)    
 
 def response_query(query):
     
+
     tokens = preprocess_query(query)
+    
+    embed_result = embed_query(' '.join(query))
+    
+
 
     normal_results = normal_search(tokens, INDEX_PATH)
     phrase_results = phrase_search(tokens, INDEX_PATH)
 
-    final_results = merge_results(normal_results, phrase_results)
+    final_results_lexical = merge_results(normal_results, phrase_results)
+    
+    union_score_result = union_weightage(final_results_lexical,embed_result)
 
-    print(f"Length of res_query : {len(final_results)}")
-    for s_no, (doc_id, doc_url, score) in enumerate(final_results, 1):
+    print(f"Length of res_query : {len(union_score_result)}")
+    for s_no, (doc_id, doc_url, score) in enumerate(union_score_result, 1):
         print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")
     print("Query Successful")
 

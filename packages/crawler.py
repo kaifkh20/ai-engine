@@ -105,7 +105,6 @@ def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_fi
             index = faiss.IndexFlatL2(dimension)
             existing_mapping = {}
     else:
-        # BUILD FROM SCRATCH MODE: Create new index
         print("Building new index from scratch")
         index = faiss.IndexFlatL2(dimension)
         existing_mapping = {}
@@ -119,7 +118,7 @@ def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_fi
     vector_index_id = index.ntotal - 1
     
     # Update mapping
-    existing_mapping[doc_id] = vector_index_id
+    existing_mapping[vector_index_id] = doc_id
     
     # Save updated index
     try:
