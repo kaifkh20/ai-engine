@@ -1,4 +1,5 @@
-# Search Engine with Client–Server Architecture
+# AI Search Engine with Client–Server Architecture 
+<a href="https://youtu.be/I2MTm8PGtPQ"> Video Example</a>
 
 A modular information retrieval system built from scratch with traditional IR, neural reranking, vector search, and RAG-style generation.  
 The system exposes a CLI-based client–server interface.
