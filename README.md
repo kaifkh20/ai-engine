@@ -40,6 +40,25 @@ The system exposes a CLI-based client–server interface.
 
 ---
 
+## AI Components
+# Vector Search with Embeddings (FAISS)
+
+   - Documents and queries are converted into dense embeddings using a language model.
+
+   - This allows semantic search (matching meaning, not just words).
+
+# Cross-Encoder Reranker
+
+   - A transformer-based model scores the relevance of query–document pairs.
+
+   - Unlike BM25 (bag-of-words), this uses deep contextual understanding of language.
+
+# RAG-style Answer Generation
+
+  - A generative model (e.g., Gemini) is given the query + retrieved context.
+
+  - It produces a natural-language answer, simulating an intelligent assistant.
+
 ## Installation
 
 ```bash
