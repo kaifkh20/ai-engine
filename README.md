@@ -55,12 +55,14 @@ python server.py
 
 ```
 
-#Client 
+# Client 
 
-```python client.py "your query here"
+```
+python client.py "your query here"
+
 ```
 
-#Dependencies
+# Dependencies
 
 As stated in req.text
 
