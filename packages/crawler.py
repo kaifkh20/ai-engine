@@ -15,7 +15,7 @@ import numpy as np
 
 from . import text_preprocess as tp
 
-# Your original constants
+
 DOCS_FILE = "docs.jsonl"
 INDEX_FILE = "index.json"
 STATS_FILE = "doc_stats.json"
