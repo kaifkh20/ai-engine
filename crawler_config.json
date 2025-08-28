@@ -36,6 +36,10 @@
         {
           "topic": "cnn",
           "fetched": true
+        },
+        {
+          "topic": "convolutional neural network",
+          "fetched": true
         }
       ]
     }
