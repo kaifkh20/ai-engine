@@ -9,10 +9,10 @@
       "enabled": true,
       "base_url": "https://en.wikipedia.org/w/api.php",
       "topics": [
-        "machine learning",
-        "neural networks",
-        "computer vision",
-        "natural language processing"
+        {"topic":"machine learning","fetched":true},
+        {"topic":"neural networks","fetched":true},
+        {"topic":"computer vision","fetched":true},
+        {"topic":"natural language processing","fetched":true}
       ]
     }
   },

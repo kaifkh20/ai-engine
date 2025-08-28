@@ -49,7 +49,7 @@ def query_score(q,d):
 
     return len(qset.intersection(dset))
 
-def ranking(scores,top_k=10):
+def ranking(scores,top_k=5):
     docs = load_docs(DOCS_PATH)
     doc_map = {str(doc["id"]) : doc["url"] for doc in docs}
     
@@ -184,32 +184,27 @@ def preprocess_query(query):
     return tokens
 
 def merge_results(normal_results, phrase_results, phrase_boost=2.0):
-    combined_scores = {}
+    combined_scores = Counter()
     
     # Add normal results
     for doc_id,doc_url, score in normal_results:
-        combined_scores[doc_id] = {"url":doc_url, "score": score}
+        combined_scores[doc_id] =  score
         
     # Add phrase results with boost
     for doc_id,doc_url,phrase_score in phrase_results:
         if not doc_url:
             continue
         if doc_id in combined_scores:
-            combined_scores[doc_id]["score"] += phrase_score * phrase_boost
+            combined_scores[doc_id] += phrase_score * phrase_boost
         else:
-            combined_scores[doc_id] = {"url":doc_url, "score": phrase_score * phrase_boost}
+            combined_scores[doc_id] = phrase_score
 
     # Sort
     
-
-    return sorted(
-        [(doc_id, vals["url"], vals["score"]) for doc_id, vals in combined_scores.items()],
-        key=lambda x: x[2],
-        reverse=True
-    )
+    return ranking(combined_scores)
 
 
-def embed_query(query, faiss_path=FAISS_PATH, vector_path=VECTOR_PATH, k=1):
+def embed_query(query, faiss_path=FAISS_PATH, vector_path=VECTOR_PATH, k=3):
     model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
     result = []
     

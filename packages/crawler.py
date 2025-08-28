@@ -119,18 +119,25 @@ class URLDiscoverer:
         max_per_topic = self.config["max_urls_per_source"] // len(topics) if topics else 10
         
         for topic in topics:
-            print(f"Searching Wikipedia for: {topic}")
+            print(f"Searching Wikipedia for: {topic['topic']}")
             
+            if topic["fetched"]==True:
+                print("Already fetched from wiki_api")
+                continue
+
             params = {
                 'action': 'query',
                 'format': 'json',
                 'list': 'search',
-                'srsearch': topic,
+                'srsearch': topic["topic"],
                 'srlimit': max_per_topic
             }
             
             try:
-                response = requests.get(base_url, params=params, timeout=10)
+                headers = {
+                    "User-Agent": "AITestingBot/1.0 (mailto:kaifkhan.saif@gmail.com) PythonRequestsForToyProject/2.0"
+                } 
+                response = requests.get(base_url, params=params,headers=headers, timeout=10)
                 response.raise_for_status()
                 data = response.json()
                 
@@ -288,10 +295,6 @@ def add_to_faiss(doc_id, doc_text, update=False, faiss_file=FAISS_FILE,vector_fi
         raise RuntimeError(f"Failed to save vector mapping: {e}")
     
     print(f"Document '{doc_id}' added successfully at index position {vector_index_id}")
-
-
-
-
 
 
 def build_inverted_index(docs_file=DOCS_FILE, index_file=INDEX_FILE, stats_file=STATS_FILE):
