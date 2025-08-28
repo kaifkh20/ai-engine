@@ -75,6 +75,7 @@ pip install -r req.txt
 ## Usage
 # Start the server
 ```
+python -m packages.crawler #to run the crawler
 python server.py
 
 ```
