@@ -7,7 +7,11 @@ from thefuzz import process, fuzz
 from sentence_transformers import SentenceTransformer,CrossEncoder
 import faiss
 import numpy as np
-
+#from transformers import RagTokenizer, RagSequenceForGeneration
+from google import genai
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 DOCS_PATH = "docs.jsonl"
 INDEX_PATH = "index.json"
@@ -15,6 +19,9 @@ STATS_PATH = "doc_stats.json"
 
 VECTOR_PATH = "vector.json"
 FAISS_PATH = "index.faiss"
+
+API_KEY = os.getenv("GEMINI_API")
+
 
 def load_docs(path=DOCS_PATH):
     docs = []
@@ -273,6 +280,51 @@ def cross_encoder(query_raw, union_score_results):
     
     return ranking(scores)
 
+def rag_gen(query,cross_encoder_result):
+    
+    client = genai.Client(api_key=API_KEY)
+    
+    docs = load_docs()
+    doc_lookup = {doc["id"]: doc["raw_text"] for doc in docs}
+
+    top_docs = []
+    
+
+    for (doc_id,doc_url,score) in cross_encoder_result:
+        top_docs.append(doc_lookup[doc_id])
+
+    prompt = f'Answer the following question based on the provided context.\n\nContext:\n{" ".join(top_docs)}\n\nQuestion: {query}\n\nAnswer(under 100 words)(strictly adhere to the context and query):'
+    
+
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt
+    )
+    return response.text
+
+
+'''
+def rag_gen(cross_encoder_result):
+    tokenizer = RagTokenizer.from_pretrained("facebook/rag-sequence-nq")
+    model = RagSequenceForGeneration.from_pretrained("facebook/rag-sequence-nq")
+    
+    docs = load_docs()
+    doc_lookup = {doc["id"]: doc["raw_text"] for doc in docs}
+
+    top_docs = []
+
+    for (doc_id,_,_) in cross_encoder_result:
+        top_docs.append(doc_lookup[doc_id])
+
+
+    # Suppose top_docs = ["doc text 1", "doc text 2", ...]
+    input_text = "Query: " + query + " Context: " + " ".join(top_docs)
+    inputs = tokenizer(input_text, return_tensors="pt")
+    generated = model.generate(**inputs)
+    answer = tokenizer.decode(generated[0], skip_special_tokens=True)
+    
+    return answer
+'''
 def response_query(query):
     
 
@@ -283,16 +335,17 @@ def response_query(query):
     normal_results = normal_search(tokens, INDEX_PATH)
     phrase_results = phrase_search(tokens, INDEX_PATH)
     
-    print(f"LEN:{len(phrase_results)}")
 
     final_results_lexical = merge_results(normal_results, phrase_results)
     
-    print(f"LEN:{len(final_results_lexical)}")
     
     union_score_result = union_weightage(final_results_lexical,embed_result)
     
     cross_encoder_result = cross_encoder(query,union_score_result)
     
+    rag_answer = rag_gen(query,cross_encoder_result)
+
+    print(f"Answer Generated : \n {rag_answer}")
     print(f"Length of res_query : {len(cross_encoder_result)}")
     for s_no, (doc_id, doc_url, score) in enumerate(cross_encoder_result, 1):
         print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")

@@ -20,3 +20,5 @@ index.faiss
 docs.jsonl
 index.json
 vector.json
+
+.env
