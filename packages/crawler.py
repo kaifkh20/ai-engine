@@ -21,6 +21,7 @@ INDEX_FILE = "index.json"
 STATS_FILE = "doc_stats.json"
 FAISS_FILE = "index.faiss"
 VECTOR_FILE = "vector.json"
+CONFIG_FILE = "crawler_config.json"
 
 class URLDiscoverer:
     """Handles URL discovery from various sources"""
@@ -29,7 +30,7 @@ class URLDiscoverer:
         self.load_config(config_file)
         self.discovered_urls: Set[str] = set()
         
-    def load_config(self, config_file):
+    def load_config(self, config_file=CONFIG_FILE):
         """Load URL discovery configuration"""
         
         default_config = {}
@@ -150,7 +151,7 @@ class URLDiscoverer:
                         
                         if self.is_valid_url(url):
                             urls.append(url)
-                
+                            topic["fetched"] = True               
                 time.sleep(self.config["delay_between_requests"])
                             
             except Exception as e:
@@ -159,6 +160,12 @@ class URLDiscoverer:
         print(f"Discovered {len(urls)} URLs from Wikipedia API")
         return urls
     
+    def update_crawler_config(self, config_file="crawler_config.json"):
+
+        with open(config_file, 'w') as f:
+            json.dump(self.config, f, indent=2)
+    
+
     def discover_all_urls(self):
         """Main method to discover URLs from all sources"""
         all_urls = []
@@ -178,7 +185,8 @@ class URLDiscoverer:
 
         # Remove duplicates while preserving order
         unique_urls = list(dict.fromkeys(all_urls))
-
+        
+        self.update_crawler_config()
         print(f"Total unique URLs discovered: {len(unique_urls)}")
         return unique_urls
 
@@ -460,5 +468,33 @@ def save_to_file():
     print(f"Total documents in collection: {total_docs}")
 
 
-def crawl():
-    save_to_file()
+def crawl(query=None):
+    '''
+    save_to_file_flag = False
+    if query is not None:
+        discoverer = URLDiscoverer()
+        discoverer.load_config()
+        config = discoverer.config
+        wiki_config = config["search_apis"]["wikipedia"]["topics"]
+        
+        topic_present = False
+        for topic in wiki_config:
+            if topic["topic"]==query:
+                topic_present = True
+                break
+
+        if topic_present==False:
+            append_topic = {"topic":query,"fetched":False}
+            wiki_config.append(append_topic)
+            
+            discoverer.update_crawler_config()
+            
+            save_to_file_flag = True 
+    '''
+    if query is not None and save_to_file_flag is True:
+        save_to_file()
+    elif query is None:
+        save_to_file()
+    
+if __name__=='__main__':
+    crawl(query=None)

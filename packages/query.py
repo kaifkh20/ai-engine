@@ -340,9 +340,6 @@ def response_query(query):
     
     rag_answer = rag_gen(query,cross_encoder_result)
 
-    print(f"Answer Generated : \n{rag_answer}")
-    print(f"Length of res_query : {len(cross_encoder_result)}")
-    for s_no, (doc_id, doc_url, score) in enumerate(cross_encoder_result, 1):
-        print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")
-    print("Query Successful")
+    return (rag_answer,cross_encoder_result)
+
 

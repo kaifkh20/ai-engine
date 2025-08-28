@@ -9,10 +9,26 @@
       "enabled": true,
       "base_url": "https://en.wikipedia.org/w/api.php",
       "topics": [
-        {"topic":"machine learning","fetched":true},
-        {"topic":"neural networks","fetched":true},
-        {"topic":"computer vision","fetched":true},
-        {"topic":"natural language processing","fetched":true}
+        {
+          "topic": "machine learning",
+          "fetched": true
+        },
+        {
+          "topic": "neural networks",
+          "fetched": true
+        },
+        {
+          "topic": "computer vision",
+          "fetched": true
+        },
+        {
+          "topic": "natural language processing",
+          "fetched": true
+        },
+        {
+          "topic": "deep learning",
+          "fetched": true
+        }
       ]
     }
   },
@@ -20,7 +36,7 @@
     "https://en.wikipedia.org/wiki/Artificial_intelligence",
     "https://en.wikipedia.org/wiki/Machine_learning",
     "https://arxiv.org/abs/1706.03762",
-   "https://en.wikipedia.org/wiki/Natural_language_processing" 
+    "https://en.wikipedia.org/wiki/Natural_language_processing"
   ],
   "allowed_domains": [
     "en.wikipedia.org",
