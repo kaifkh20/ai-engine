@@ -33,8 +33,12 @@ The system exposes a CLI-based client–server interface.
 7. **RAG-style Generation**
    - Top retrieved documents passed with query to a generative model (e.g., Gemini).
    - Produces coherent, context-aware answers.
-
-8. **Client–Server Architecture**
+     
+8. **Text Preprocessing**
+   - Pre-process query and document text
+   - Tokenization + Stemmerization
+    
+10. **Client–Server Architecture**
    - **Server**: Hosts index, embeddings, and search logic.
    - **Client**: CLI that sends queries, receives results, and displays answers.
 
