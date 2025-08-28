@@ -19,7 +19,7 @@ def main():
     
     print("Search results:")
     
-    rag_answer = data["rag_answer"].split(":")[1]
+    rag_answer = ":".join(data["rag_answer"].split(":")[1:])
     list_of_docs = data["list_of_docs"]
     print(f"\n{rag_answer}\n")
     

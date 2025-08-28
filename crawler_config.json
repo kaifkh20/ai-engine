@@ -28,6 +28,14 @@
         {
           "topic": "deep learning",
           "fetched": true
+        },
+        {
+          "topic": "maths",
+          "fetched": true
+        },
+        {
+          "topic": "cnn",
+          "fetched": true
         }
       ]
     }

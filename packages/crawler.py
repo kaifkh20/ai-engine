@@ -13,7 +13,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
-from . import text_preprocess as tp
+from packages import text_preprocess as tp
 
 # Your original constants
 DOCS_FILE = "docs.jsonl"
