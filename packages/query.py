@@ -288,7 +288,7 @@ def rag_gen(query,cross_encoder_result):
     for (doc_id,doc_url,score) in cross_encoder_result:
         top_docs.append(doc_lookup[doc_id])
 
-    prompt = f'Answer the following question based on the provided context.\n\nContext:\n{" ".join(top_docs)}\n\nQuestion: {query}\n\nAnswer(under 100 words)(strictly adhere to the context and query):'
+    prompt = f'Answer the following question based on the provided context.\n\nContext:\n{" ".join(top_docs)}\n\nQuestion: {query}\n\nAnswer(under 100 words)(strictly adhere to the context and query and also give in format Answer Provided : and answer then. No unnecessary text except for answer):'
     
 
     response = client.models.generate_content(
@@ -340,7 +340,7 @@ def response_query(query):
     
     rag_answer = rag_gen(query,cross_encoder_result)
 
-    print(f"Answer Generated : \n {rag_answer}")
+    print(f"Answer Generated : \n{rag_answer}")
     print(f"Length of res_query : {len(cross_encoder_result)}")
     for s_no, (doc_id, doc_url, score) in enumerate(cross_encoder_result, 1):
         print(f"{s_no}: Document Id: {doc_id} | {doc_url} | Score: {score}")

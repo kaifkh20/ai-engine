@@ -75,17 +75,19 @@ class URLDiscoverer:
         print(f"Discovered {len(urls)} URLs from manual seeds")
         return urls 
 
-    def discover_from_sitemaps(self) -> List[str]:
+    def discover_from_sitemaps(self):
         """Discover URLs from XML sitemaps"""
         urls = []
         max_urls = self.config["max_urls_per_source"]
-        HEADERS = {"User-Agent": "AI/SearchBot/0.1 (kaifkhan.saif@gmail.com)"}
         
         for sitemap_url in self.config["sitemap_urls"]:
             print(f"Processing sitemap: {sitemap_url}")
             
             try:
-                response = requests.get(sitemap_url, headers=HEADERS, timeout=10)
+                headers = {
+                    "User-Agent": "AITestingBot/1.0 (mailto:kaifkhan.saif@gmail.com) PythonRequestsForToyProject/2.0"
+                } 
+                response = requests.get(sitemap_url, headers=headers, timeout=10)
                 response.raise_for_status()
                 
                 soup = BeautifulSoup(response.content, 'xml')
