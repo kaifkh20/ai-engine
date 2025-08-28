@@ -1,4 +1,5 @@
-# Search Engine with Client–Server Architecture
+# AI Search Engine with Client–Server Architecture 
+<a href="https://youtu.be/I2MTm8PGtPQ"> Video Example</a>
 
 A modular information retrieval system built from scratch with traditional IR, neural reranking, vector search, and RAG-style generation.  
 The system exposes a CLI-based client–server interface.
@@ -33,12 +34,35 @@ The system exposes a CLI-based client–server interface.
 7. **RAG-style Generation**
    - Top retrieved documents passed with query to a generative model (e.g., Gemini).
    - Produces coherent, context-aware answers.
-
-8. **Client–Server Architecture**
+     
+8. **Text Preprocessing**
+   - Pre-process query and document text
+   - Tokenization + Stemmerization
+    
+10. **Client–Server Architecture**
    - **Server**: Hosts index, embeddings, and search logic.
    - **Client**: CLI that sends queries, receives results, and displays answers.
 
 ---
+
+## AI Components
+# Vector Search with Embeddings (FAISS)
+
+   - Documents and queries are converted into dense embeddings using a language model.
+
+   - This allows semantic search (matching meaning, not just words).
+
+# Cross-Encoder Reranker
+
+   - A transformer-based model scores the relevance of query–document pairs.
+
+   - Unlike BM25 (bag-of-words), this uses deep contextual understanding of language.
+
+# RAG-style Answer Generation
+
+  - A generative model (e.g., Gemini) is given the query + retrieved context.
+
+  - It produces a natural-language answer, simulating an intelligent assistant.
 
 ## Installation
 
@@ -55,12 +79,14 @@ python server.py
 
 ```
 
-#Client 
+# Client 
 
-```python client.py "your query here"
+```
+python client.py "your query here"
+
 ```
 
-#Dependencies
+# Dependencies
 
 As stated in req.text
 
