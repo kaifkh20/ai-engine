@@ -72,10 +72,14 @@ cd ai-engine
 pip install -r req.txt
 
 ```
-## Usage
+# Usage
 # Start the server
+
+Make sure Python 3.11 or 3.10 is installed.
+
 ```
-python -m packages.crawler #to run the crawler
+python -m packages.crawler #to run the crawler run this only if its first time
+                           # or you update the crawler_config.json
 python server.py
 
 ```

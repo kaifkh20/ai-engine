@@ -33,7 +33,66 @@ class URLDiscoverer:
     def load_config(self, config_file=CONFIG_FILE):
         """Load URL discovery configuration"""
         
-        default_config = {}
+    default_config = {
+            "sitemap_urls": [],
+            "rss_feeds": [
+                "https://arxiv.org/rss/cs.AI",
+                "https://feeds.feedburner.com/oreilly/radar"
+            ],
+            "search_apis": {
+                "wikipedia": {
+                    "enabled": True,
+                    "base_url": "https://en.wikipedia.org/w/api.php",
+                    "topics": [
+                        {
+                            "topic": "machine learning",
+                            "fetched":False
+                        },
+                        {
+                            "topic": "neural networks",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "computer vision",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "natural language processing",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "deep learning",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "maths",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "cnn",
+                            "fetched": False
+                        },
+                        {
+                            "topic": "convolutional neural network",
+                            "fetched": False
+                        }
+                    ]
+                }
+            },
+            "manual_seeds": [
+                "https://en.wikipedia.org/wiki/Artificial_intelligence",
+                "https://en.wikipedia.org/wiki/Machine_learning",
+                "https://arxiv.org/abs/1706.03762",
+                "https://en.wikipedia.org/wiki/Natural_language_processing"
+            ],
+            "allowed_domains": [
+                "en.wikipedia.org",
+                "arxiv.org",
+                "feeds.feedburner.com"
+            ],
+            "max_urls_per_source": 10,
+            "delay_between_requests": 1
+        }
 
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
