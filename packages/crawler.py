@@ -32,8 +32,8 @@ class URLDiscoverer:
         
     def load_config(self, config_file=CONFIG_FILE):
         """Load URL discovery configuration"""
-        
-    default_config = {
+
+        default_config = {
             "sitemap_urls": [],
             "rss_feeds": [
                 "https://arxiv.org/rss/cs.AI",
@@ -44,38 +44,14 @@ class URLDiscoverer:
                     "enabled": True,
                     "base_url": "https://en.wikipedia.org/w/api.php",
                     "topics": [
-                        {
-                            "topic": "machine learning",
-                            "fetched":False
-                        },
-                        {
-                            "topic": "neural networks",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "computer vision",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "natural language processing",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "deep learning",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "maths",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "cnn",
-                            "fetched": False
-                        },
-                        {
-                            "topic": "convolutional neural network",
-                            "fetched": False
-                        }
+                        {"topic": "machine learning", "fetched": False},
+                        {"topic": "neural networks", "fetched": False},
+                        {"topic": "computer vision", "fetched": False},
+                        {"topic": "natural language processing", "fetched": False},
+                        {"topic": "deep learning", "fetched": False},
+                        {"topic": "maths", "fetched": False},
+                        {"topic": "cnn", "fetched": False},
+                        {"topic": "convolutional neural network", "fetched": False}
                     ]
                 }
             },
@@ -102,7 +78,7 @@ class URLDiscoverer:
             # Save default config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
-        
+
         self.config = default_config
     
     def is_valid_url(self, url: str) -> bool:
