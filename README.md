@@ -4,6 +4,11 @@
 A modular information retrieval system built from scratch with traditional IR, neural reranking, vector search, and RAG-style generation.  
 The system exposes a CLI-based client–server interface.
 
+## IMPORTANT
+This tool uses GEMINI-api so please create an .env file with 
+GEMINI_API=YOUR_API_KEY
+
+for it to work without failure 
 ---
 
 ## Features
